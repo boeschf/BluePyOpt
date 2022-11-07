@@ -27,6 +27,7 @@ from bluepyopt.ephys.acc.acc_label import ArbLabel
 from bluepyopt.ephys.base import BaseEPhys
 from bluepyopt.ephys.serializer import DictMixin
 from bluepyopt.ephys.parameterscalers import format_float
+from bluepyopt.ephys.acc import ArbLabel
 from bluepyopt.ephys.morphologies import ArbFileMorphology
 import numpy as np
 

@@ -10,7 +10,7 @@ import platform
 import warnings
 import pathlib
 
-from bluepyopt import _arbor as arbor
+from bluepyopt.ephys.acc import arbor
 
 
 logger = logging.getLogger(__name__)
