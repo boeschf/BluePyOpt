@@ -13,7 +13,7 @@ from bluepyopt.ephys.acc import arbor, ArbLabel
 from bluepyopt.ephys.morphologies import ArbFileMorphology
 from bluepyopt.ephys.parameterscalers import NrnSegmentSomaDistanceScaler
 
-from .. import utils
+from . import utils
 
 from bluepyopt import ephys
 from bluepyopt.ephys import create_acc
@@ -539,6 +539,7 @@ def test_cell_model_write_and_read_acc_replace_axon():
             assert len(e.args) == 1 and e.args[0] == \
                 "Need a newer version of Arbor for axon replacement."
             return
+
         # Axon replacement implemented in installed Arbor version
         cell_json, arb_morph, arb_decor, arb_labels = \
             create_acc.read_acc(

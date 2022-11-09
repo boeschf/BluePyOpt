@@ -1,5 +1,3 @@
-<<<<<<<< HEAD:bluepyopt/ephys/acc/acc_label.py
-========
 '''Dependencies of Arbor simulator backend'''
 
 try:
@@ -14,7 +12,6 @@ except ImportError as e:
                               " run 'pip install bluepyopt[arbor]'.")
 
 
->>>>>>>> 73772ea (Integrating Anil's review including large extension of the create_acc testsuite and refactoring ACC/JSON exporter, rename output_acc to write_acc and make it a method of cell models):bluepyopt/ephys/acc.py
 class ArbLabel:
     """Arbor label"""
 
@@ -46,14 +43,6 @@ class ArbLabel:
         return self._s_expr
 
     def __eq__(self, other):
-<<<<<<<< HEAD:bluepyopt/ephys/acc/acc_label.py
-        if not hasattr(other, 'defn'):
-            return False
-        return self.defn == other.defn
-
-    def __hash__(self):
-        return hash(self.defn)
-========
         if other is None:
             return False
         elif not isinstance(other, ArbLabel):
@@ -63,7 +52,6 @@ class ArbLabel:
 
     def __hash__(self):
         return hash(self._s_expr)
->>>>>>>> 73772ea (Integrating Anil's review including large extension of the create_acc testsuite and refactoring ACC/JSON exporter, rename output_acc to write_acc and make it a method of cell models):bluepyopt/ephys/acc.py
 
     def __repr__(self):
         return self.defn

@@ -5,7 +5,7 @@
 import io
 import logging
 import pathlib
-from collections import ChainMap, OrderedDict, namedtuple
+from collections import namedtuple, OrderedDict
 import re
 
 import jinja2
@@ -15,15 +15,8 @@ import shutil
 from bluepyopt.ephys.acc import arbor
 from bluepyopt.ephys.morphologies import ArbFileMorphology
 from bluepyopt.ephys.create_hoc import \
-    Location, _get_template_params, format_float
-from bluepyopt.ephys.acc.neuron_to_arbor import (
-    RangeIExpr,
-    arb_convert_params_and_group_by_mech_global,
-    arb_convert_params_and_group_by_mech_local,
-    arb_nmodl_translate_density,
-    arb_nmodl_translate_points,
-)
-from bluepyopt.exceptions import CreateAccException
+    Location, RangeExpr, PointExpr, \
+    _get_template_params, format_float
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +266,7 @@ def _arb_filter_point_proc_locs(pprocess_mechs):
         pprocess_mechs (): Point process mechanisms with parameters in
         Arbor format
     """
+
     result = {loc: dict() for loc in pprocess_mechs}
 
     for loc, mechs in pprocess_mechs.items():
@@ -536,7 +530,7 @@ def _read_templates(template_dir, template_filename):
      return dict of target filename -> parsed template"""
     if template_dir is None:
         template_dir = \
-            (pathlib.Path(__file__).parent.parent / 'templates').resolve()
+            pathlib.Path(__file__).parent.joinpath('templates').resolve()
 
     template_paths = pathlib.Path(template_dir).glob(template_filename)
 
@@ -596,8 +590,6 @@ def create_acc(mechs,
         custom_jinja_params (dict): dict of additional jinja2 params in case
         of a custom template
     '''
-    if custom_jinja_params is None:
-        custom_jinja_params = {}
 
     if pathlib.Path(morphology).suffix.lower() not in ['.swc', '.asc']:
         raise CreateAccException("Morphology file %s not supported in Arbor "
@@ -638,6 +630,8 @@ def create_acc(mechs,
         replace_axon_path = None
         modified_morphology_path = None
 
+    templates = _read_templates(template_dir, template_filename)
+
     default_location_order = list(ArbFileMorphology.region_labels.values())
 
     template_params = _get_template_params(mechs,
@@ -646,6 +640,13 @@ def create_acc(mechs,
                                            disable_banner,
                                            default_location_order,
                                            _arb_loc_desc)
+
+    if custom_jinja_params is None:
+        custom_jinja_params = {}
+
+    filenames = {
+        name: template_name + (name if name.startswith('.') else "_" + name)
+        for name in templates.keys()}
 
     # postprocess template parameters for Arbor
     channels = template_params['channels']
@@ -663,9 +664,9 @@ def create_acc(mechs,
     local_mechs, additional_global_mechs = \
         Nrn2ArbMechGrouper.process_local(
             template_params['section_params'], channels)
-    for params in additional_global_mechs:
-        global_mechs[None] = \
-            global_mechs.get(None, []) + params
+    for mech, params in additional_global_mechs.items():
+        global_mechs[mech] = \
+            global_mechs.get(mech, []) + params
 
     # scaled_mechs refer to iexpr params of scaled density mechs in Arbor
     # [label -> mech -> param.location/.name/.value/.value_scaler]
@@ -679,7 +680,7 @@ def create_acc(mechs,
             range_params, channels)
 
     # join each mech's constant params with inhomogeneous ones on mechanisms
-    _arb_append_global_scaled_mechs(global_mechs, global_scaled_mechs)
+    _arb_append_scaled_mechs(global_mechs, global_scaled_mechs)
     for loc in local_scaled_mechs:
         _arb_append_scaled_mechs(local_mechs[loc], local_scaled_mechs[loc])
 
@@ -688,7 +689,7 @@ def create_acc(mechs,
     pprocess_mechs, global_pprocess_mechs = \
         Nrn2ArbMechGrouper.process_local(
             template_params['pprocess_params'], point_channels)
-    if any(len(params) > 0 for params in global_pprocess_mechs):
+    if any(len(params) > 0 for params in global_pprocess_mechs.values()):
         raise CreateAccException('Point process mechanisms cannot be'
                                  ' placed globally in Arbor.')
 
@@ -782,13 +783,13 @@ def write_acc(output_dir, cell, parameters,
     for comp, comp_rendered in output.items():
         comp_filename = output_dir.joinpath(comp)
         if comp_filename.exists():
-            raise FileExistsError("%s already exists!" % comp_filename)
+            raise CreateAccException("%s already exists!" % comp_filename)
         with open(output_dir.joinpath(comp), 'w') as f:
             f.write(comp_rendered)
 
     morpho_filename = output_dir.joinpath(cell_json['morphology']['original'])
     if morpho_filename.exists():
-        raise FileExistsError("%s already exists!" % morpho_filename)
+        raise CreateAccException("%s already exists!" % morpho_filename)
     shutil.copy2(cell.morphology.morphology_path, morpho_filename)
 
 
@@ -819,3 +820,13 @@ def read_acc(cell_json_filename):
         cell_json_dir.joinpath(cell_json['label_dict'])).component
 
     return cell_json, morpho, decor, labels
+
+
+class CreateAccException(Exception):
+
+    """All exceptions generated by create_acc module"""
+
+    def __init__(self, message):
+        """Constructor"""
+
+        super(CreateAccException, self).__init__(message)
